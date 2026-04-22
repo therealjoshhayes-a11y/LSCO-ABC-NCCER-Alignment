@@ -1,0 +1,5 @@
+if(document.getElementById("de") != null && document.getElementById("directedit")) {
+				var link = document.getElementById("de").parentNode.innerHTML;
+				document.getElementById("de").parentNode.innerHTML = "";
+				document.getElementById("directedit").innerHTML = link.replace(/^\s+|\s+$/gm,'');
+			}

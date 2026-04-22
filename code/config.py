@@ -40,10 +40,10 @@ NCCER_CEL_DIR    = SOURCE_DATA_DIR / "nccer" / "cel"
 # ─────────────────────────────────────────────
 
 DEGREE_PLANS = {
-    "electrical_aas":      DEGREE_PLANS_DIR / "Electrical_AAS.pdf",
-    "welding_aas":         DEGREE_PLANS_DIR / "Welding_AAS.pdf",
-    "instrumentation_aas": DEGREE_PLANS_DIR / "Instrumentation_AAS.pdf",
-    "pipefitting_cc":      DEGREE_PLANS_DIR / "Pipefitting_CC.pdf",
+    "electrical_aas":      DEGREE_PLANS_DIR / "Electrical_AAS.html",
+    "welding_aas":         DEGREE_PLANS_DIR / "Welding_AAS.html",
+    "instrumentation_aas": DEGREE_PLANS_DIR / "Instrumentation_AAS.html",
+    "pipefitting_cc":      DEGREE_PLANS_DIR / "Pipefitting_CC.html",
     "bct_aas":             DEGREE_PLANS_DIR / "BCT_AAS.html",
     "bcm_aas":             DEGREE_PLANS_DIR / "BCM_AAS.html",
 }
