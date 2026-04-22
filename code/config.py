@@ -182,3 +182,9 @@ def get_run_id():
 BCM_ALLOWED_RUBRICS = ["CNBT"]
 # BCM AAS included at limited scope — T-0 only, CNBT rubric courses only.
 # All other rubrics excluded from BCM candidate pool.
+
+# ─────────────────────────────────────────────
+# TESSERACT
+# ─────────────────────────────────────────────
+
+TESSERACT_CMD = r"C:\Users\jhayes4\AppData\Local\Programs\Tesseract-OCR\tesseract.exe"
