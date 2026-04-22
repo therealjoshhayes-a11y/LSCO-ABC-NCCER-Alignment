@@ -40,19 +40,43 @@ SKIP_TRIGGERS = [
 # REGEX PATTERNS
 # ─────────────────────────────────────────────
 
-# Module delimiter: "Lesson Plans for Module XXXXX"
-RE_MODULE_HEADER = re.compile(
+# Format 1: "Lesson Plans for Module XXXXX" (Core, Welding, Scaffold)
+RE_MODULE_HEADER_CLASSIC = re.compile(
     r"Lesson Plans for Module\s+(\d{5})", re.IGNORECASE
 )
 
-# Learning Objective line: "Learning Objective N"
+# Format 2: "Lesson Plans for XXXXX-XX" (Instrumentation)
+RE_MODULE_HEADER_DATED = re.compile(
+    r"Lesson Plans for\s+(\d{5}-\d{2})", re.IGNORECASE
+)
+
+# Format 3a: "XXXXX-XX" standalone line (Electrical)
+RE_MODULE_HEADER_NEW = re.compile(
+    r"^(\d{5}-\d{2})\s*$"
+)
+
+# Format 3b: "XX/XXX" OCR artifact for module numbers (Carpentry Form/Advanced)
+RE_MODULE_HEADER_SLASH = re.compile(
+    r"^(\d{1,2})/(\d{3})\s*$"
+)
+
+# Learning Objective line
 RE_LEARNING_OBJ = re.compile(
     r"^Learning Objective\s+\d+", re.IGNORECASE
 )
 
-# Sub-item line: starts with "a." "b." "c." etc.
+# "Successful completion" descriptor line — new format objectives
+RE_SUCCESSFUL_COMPLETION = re.compile(
+    r"^Successful completion of this module prepares trainees to", re.IGNORECASE
+)
+
+# Sub-item line: starts with "a." "b." "c." or bullet "e " (OCR artifact for bullet)
 RE_SUB_ITEM = re.compile(
     r"^[a-z]\.\s+\S"
+)
+
+RE_SUB_ITEM_BULLET = re.compile(
+    r"^e\s+[A-Z]"
 )
 
 # Performance Tasks header
@@ -60,7 +84,7 @@ RE_PERF_TASKS = re.compile(
     r"^Performance Tasks?", re.IGNORECASE
 )
 
-# Knowledge-based module — no performance tasks
+# Knowledge-based module
 RE_KNOWLEDGE_BASED = re.compile(
     r"knowledge.based module", re.IGNORECASE
 )
@@ -70,7 +94,6 @@ RE_KNOWLEDGE_BASED = re.compile(
 # ─────────────────────────────────────────────
 
 def should_skip_line(line: str) -> bool:
-    """Return True if this line is administrative content to skip."""
     for trigger in SKIP_TRIGGERS:
         if trigger.lower() in line.lower():
             return True
@@ -78,16 +101,42 @@ def should_skip_line(line: str) -> bool:
 
 
 def is_module_header(line: str):
-    """Return match object if line is a module header, else None."""
-    return RE_MODULE_HEADER.search(line)
+    """
+    Return (module_id, format_name) if line is a module header, else None.
+    Tries all four format patterns in priority order.
+    """
+    stripped = line.strip()
+
+    m = RE_MODULE_HEADER_CLASSIC.search(stripped)
+    if m:
+        return m.group(1), "classic"
+
+    m = RE_MODULE_HEADER_DATED.search(stripped)
+    if m:
+        return m.group(1).replace("-", ""), "dated"
+
+    m = RE_MODULE_HEADER_NEW.match(stripped)
+    if m:
+        return m.group(1).replace("-", ""), "new"
+
+    m = RE_MODULE_HEADER_SLASH.match(stripped)
+    if m:
+        return m.group(1) + m.group(2), "slash"
+
+    return None
 
 
 def is_learning_objective(line: str) -> bool:
     return bool(RE_LEARNING_OBJ.match(line.strip()))
 
 
+def is_successful_completion(line: str) -> bool:
+    return bool(RE_SUCCESSFUL_COMPLETION.match(line.strip()))
+
+
 def is_sub_item(line: str) -> bool:
-    return bool(RE_SUB_ITEM.match(line.strip()))
+    stripped = line.strip()
+    return bool(RE_SUB_ITEM.match(stripped)) or bool(RE_SUB_ITEM_BULLET.match(stripped))
 
 
 def is_performance_task_header(line: str) -> bool:
@@ -157,7 +206,7 @@ def parse_obj_text(raw_text: str, credential: str) -> list[dict]:
             if current_module and current_module.get("module_id"):
                 modules.append(current_module)
 
-            module_id = module_match.group(1)
+            module_id, fmt = module_match
             current_module = {
                 "credential":    credential,
                 "module_id":     module_id,
@@ -185,6 +234,11 @@ def parse_obj_text(raw_text: str, credential: str) -> list[dict]:
         if is_learning_objective(line_stripped):
             in_objectives = True
             in_perf_tasks = False
+            current_module["objectives"].append(line_stripped)
+            continue
+
+        # Capture "Successful completion" descriptor as part of objective
+        if in_objectives and is_successful_completion(line_stripped):
             current_module["objectives"].append(line_stripped)
             continue
 
@@ -290,21 +344,53 @@ def process_obj_file(filepath: Path, credential: str) -> list[dict]:
 
 
 # ─────────────────────────────────────────────
-# MAIN INGEST — CORE ONLY (TEST RUN)
+# CREDENTIAL LABEL MAP
+# OBJ traces only — excludes CEL and XLSX traces
 # ─────────────────────────────────────────────
 
-def run_core_ingest() -> list[dict]:
+OBJ_CREDENTIAL_MAP = {
+    "t0_core":            "NCCER Core",
+    "t1_electrical":      "NCCER Electrical",
+    "t2_welding":         "NCCER Welding",
+    "t4_instrumentation": "NCCER Instrumentation",
+    "t5_carpentry":       "NCCER Carpentry",
+    "t7_scaffold":        "NCCER Scaffold Builder",
+}
+
+
+def run_obj_ingest() -> dict:
     """
-    Process NCCER Core OBJ PDF only.
-    Use this to validate parser before running all traces.
+    Process all OBJ PDF files across all applicable traces.
+    Saves one CSV per trace to processed/.
+    CEL format handled by ingest_nccer_cel.py.
+    Rigger XLSX handled by ingest_rigger.py.
     """
-    print("\n=== NCCER CORE OBJ INGEST ===")
-    filepath = NCCER_FILES["t0_core"][0]
-    modules  = process_obj_file(filepath, "NCCER Core")
-    save_processed(modules, "nccer_core_processed.csv")
-    print("=== CORE INGEST COMPLETE ===\n")
-    return modules
+    print("\n=== NCCER OBJ FULL INGEST ===")
+    all_results = {}
+
+    for trace_id, credential in OBJ_CREDENTIAL_MAP.items():
+        files = NCCER_FILES.get(trace_id, [])
+        if not files:
+            print(f"No files for {trace_id} — skipping.")
+            continue
+
+        print(f"\nTrace {trace_id}: {credential}")
+        trace_modules = []
+
+        for filepath in files:
+            if "CEL" in filepath.name:
+                print(f"  Skipping CEL file: {filepath.name}")
+                continue
+            modules = process_obj_file(filepath, credential)
+            trace_modules.extend(modules)
+
+        save_processed(trace_modules, f"{trace_id}_processed.csv")
+        all_results[trace_id] = trace_modules
+        print(f"  Total modules for {trace_id}: {len(trace_modules)}")
+
+    print("\n=== OBJ FULL INGEST COMPLETE ===")
+    return all_results
 
 
 if __name__ == "__main__":
-    run_core_ingest()
+    run_obj_ingest()
