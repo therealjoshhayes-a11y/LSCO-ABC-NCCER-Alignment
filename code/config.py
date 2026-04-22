@@ -184,7 +184,8 @@ BCM_ALLOWED_RUBRICS = ["CNBT"]
 # All other rubrics excluded from BCM candidate pool.
 
 # ─────────────────────────────────────────────
-# TESSERACT
+# TESSERACT AND POPPLER
 # ─────────────────────────────────────────────
 
 TESSERACT_CMD = r"C:\Users\jhayes4\AppData\Local\Programs\Tesseract-OCR\tesseract.exe"
+POPPLER_PATH  = r"C:\Users\jhayes4\AppData\Local\Microsoft\WinGet\Packages\oschwartz10612.Poppler_Microsoft.Winget.Source_8wekyb3d8bbwe\poppler-25.07.0\Library\bin"
