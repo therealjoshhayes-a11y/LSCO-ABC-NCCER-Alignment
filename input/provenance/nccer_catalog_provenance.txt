@@ -1,0 +1,7 @@
+Source: NCCER
+Dataset: NCCER Full Catalog 2025
+URL: https://www.nccer.org/media/2025/02/NCCER-FULL-Catalog.pdf
+File: nccer_catalog/NCCER-FULL-Catalog.pdf
+Retrieval Date: 2026-04-21
+Retrieved By: Joshua Hayes
+Notes: Source for module-level contact hours used in containment arithmetic. Publisher: Pearson, 2025.

@@ -1,0 +1,28 @@
+Source: NCCER Toolbox
+URL: https://toolbox.nccer.org/home
+Retrieval Date: 2026-04-21
+Retrieved By: Joshua Hayes
+Files:
+  obj/core/OBJ_Core_6E.pdf
+  obj/electrical/OBJ_Electrical_11E_L1.pdf
+  obj/electrical/OBJ_Electrical_11E_L2.pdf
+  obj/electrical/OBJ_Electrical_11E_L3.pdf
+  obj/electrical/OBJ_Electrical_11E_L4.pdf
+  obj/welding/OBJ_Welding_6E_L1.pdf
+  obj/carpentry/OBJ_Carpentry_6E_GeneralCarpentry.pdf
+  obj/carpentry/OBJ_Carpentry_6E_FormCarpentry.pdf
+  obj/carpentry/OBJ_Carpentry_6E_AdvancedCarpentry.pdf
+  obj/rigging/OBJ_BasicRigger_3E.xlsx
+  obj/rigging/OBJ_IntermediateRigger_2E.xlsx
+  obj/rigging/OBJ_AdvancedRigger_2E.xlsx
+  obj/scaffolding/OBJ_Scaffolding_2E_L1.pdf
+  obj/instrumentation/OBJ_Instrumentation_3E_L1.pdf
+  obj/instrumentation/OBJ_Instrumentation_3E_L2.pdf
+  obj/instrumentation/OBJ_Instrumentation_3E_L3.pdf
+  obj/instrumentation/OBJ_Instrumentation_3E_L4.pdf
+  cel/welding/CEL_6E_Welding_L2.pdf
+  cel/pipefitting/CEL_Pipefitting_4E_L1.pdf
+  cel/pipefitting/CEL_Pipefitting_4E_L2.pdf
+  cel/pipefitting/CEL_Pipefitting_4E_L3.pdf
+  cel/pipefitting/CEL_Pipefitting_4E_L4.pdf
+Notes: OBJ format and CEL format require separate OCR extraction rules. Rigger XLSXs read directly via openpyxl. External claims source for all Antikythera traces.

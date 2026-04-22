@@ -1,0 +1,7 @@
+Source: Texas Higher Education Data (THECB)
+Dataset: Workforce Education Course Manual (WECM) Search Course Detail
+URL: https://www.txhighereddata.org/institution-overviews/course-and-program-inventories/wecm/wecm-search-course-detail/
+File: Search_Course_WECM_3.xlsx
+Retrieval Date: 2026-04-21
+Retrieved By: Joshua Hayes
+Notes: Authoritative internal candidate pool for all traces. Active-status courses only eligible for selection. Archived courses excluded.

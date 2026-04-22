@@ -1,0 +1,7 @@
+Source: Texas Higher Education Data (THECB)
+Dataset: Academic Course Guide Manual (ACGM)
+URL: https://www.txhighereddata.org/institution-overviews/course-and-program-inventories/acgm/
+File: Academic_Course_Guide_Manual.pdf
+Retrieval Date: 2026-04-21
+Retrieved By: Joshua Hayes
+Notes: Used for IDF corpus construction only. Not a claims block source. OCR extraction required prior to use.

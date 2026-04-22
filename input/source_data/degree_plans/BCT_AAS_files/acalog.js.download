@@ -1,0 +1,5 @@
+$(function() {
+	$('.acalog').acalogWidgetize({
+		gateway: 'https://catalog.lsco.edu/'
+	});
+});
