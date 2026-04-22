@@ -3,10 +3,10 @@ URL: https://catalog.lsco.edu/
 Retrieval Date: 2026-04-21 (Electrical, Instrumentation, Welding, Pipefitting) | 2026-04-22 (BCT, BCM)
 Retrieved By: Joshua Hayes
 Files:
-  Electrical_AAS.pdf — CIP 46.0300 — Active 09/2024
-  Instrumentation_AAS.pdf — CIP 15.0400 — Active 09/2009
-  Welding_AAS.pdf — CIP 48.0500 — Active 01/2009
-  Pipefitting_CC.pdf — CIP 46.0500 — SACSCOC pending
-  BCT_AAS.html — CIP 46.0400 — Active 01/2024
-  BCM_AAS.html — CIP 52.2000 — Active 09/2021
-Notes: BCT and BCM saved as HTML via browser Webpage Complete due to dynamic catalog rendering. All other degree plans saved as PDF. BCM included at limited scope T-0 only CNBT rubric courses. BCT included at full scope. Pipefitting CC no structural modifications permitted while SACSCOC accreditation pending. All programs verified against THECB Program Inventory 023582 generated 04/21/2026.
+  Electrical_AAS.html — CIP 46.0300 — Active 09/2024 — saved as Webpage Complete (PDF image-only, no text layer)
+  Instrumentation_AAS.html — CIP 15.0400 — Active 09/2009 — saved as Webpage Complete (PDF image-only, no text layer)
+  Welding_AAS.html — CIP 48.0500 — Active 01/2009 — saved as Webpage Complete (PDF image-only, no text layer)
+  Pipefitting_CC.html — CIP 46.0500 — SACSCOC pending — saved as Webpage Complete (PDF image-only, no text layer)
+  BCT_AAS.html — CIP 46.0400 — Active 01/2024 — saved as Webpage Complete (dynamic catalog rendering)
+  BCM_AAS.html — CIP 52.2000 — Active 09/2021 — saved as Webpage Complete (dynamic catalog rendering)
+Notes: All six degree plans saved as HTML via browser Webpage Complete. Original PDFs retained in source_data for archival reference but are image-only with no text layer and are not used by the pipeline. BCM included at limited scope T-0 only CNBT rubric courses. BCT included at full scope. Pipefitting CC no structural modifications permitted while SACSCOC accreditation pending. All programs verified against THECB Program Inventory 023582 generated 04/21/2026.
