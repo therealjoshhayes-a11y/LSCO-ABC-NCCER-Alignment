@@ -129,11 +129,11 @@ TRACES = {
         "notes": "Post-divergence pipefitting track. Pipefitting CC resolves as K=4 subset. Exclude Core ledger.",
     },
     "t4_instrumentation": {
-        "name": "NCCER Instrumentation L1-L4",
-        "cip_scope": ["15.0400"],
-        "target_programs": ["instrumentation_aas"],
-        "rubric_scope": ["INTC", "PTAC", "INCR"],
-        "notes": "Post-Core. Note scheduling constraints. Exclude Core ledger allocations.",
+    "name": "NCCER Instrumentation L1-L4",
+    "cip_scope": ["15.0400"],
+    "target_programs": ["instrumentation_aas"],
+    "rubric_scope": ["INTC", "PTAC", "INCR", "ELPT"],
+    "notes": "Post-Core. Note scheduling constraints. Exclude Core ledger allocations.",
     },
     "t5_carpentry": {
         "name": "NCCER Carpentry (General, Form, Advanced)",
