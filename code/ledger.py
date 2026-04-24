@@ -3,24 +3,30 @@ ledger.py — Queue Builder and Allocation Ledger
 Antikythera Pipeline | LSCO–ABC Alignment Project
 
 Builds the reordered SME presentation queue per trace × program × module:
-  1. Full SBERT ranking across candidate pool
+  1. Full SBERT ranking across entire candidate pool (no truncation)
   2. TF-IDF promotion — +1 position if TF-IDF rank is higher
   3. Jaccard promotion — +1 position if Jaccard rank is higher (after TF-IDF)
-  4. Truncate to K = ceil(N/2)
-  5. Write queue state file (persistent — supports save and return)
-  6. Record Accept / Not Accept decisions
-  7. Write allocation ledger from accepted decisions
+  4. Write queue state file (persistent — supports save and return)
+  5. Record Accept / Not Accept decisions
+  6. Write allocation ledger from accepted decisions
 
-Module review terminates at 3 Accept decisions.
-Queue exhausted before 3 accepts — orphan flagged for analyst override.
+Exit conditions per module (per MN-001):
+  Accept exit:      3 Accept decisions recorded → module placed, advance
+  Frustration exit: 4 consecutive NOT_ACCEPT → exit, check accept count
+  Exhaustion:       Full N presented → exit, check accept count
+  Placed:           1, 2, or 3 accepts recorded at exit
+  Orphan:           0 accepts recorded at exit — recycle protocol applies
+
+No K truncation. No implied cutpoint. All termination driven by
+human decision sequence per Antikythera Methodology Note MN-001.
+
 Traces are fully independent — no cross-ledger exclusions.
 
 Track-aware candidate pool logic:
-  T-2 Welding  — WLDG rubric only (excludes PFPB pipefitting track courses)
-  T-3 Pipefitting — PFPB all courses + WLDG trunk courses (choose_one=False only)
+  T-2 Welding     — WLDG rubric only (excludes PFPB pipefitting track)
+  T-3 Pipefitting — PFPB all courses + WLDG trunk (choose_one=False only)
 """
 
-import math
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
@@ -35,15 +41,21 @@ LEDGER_FILE  = LEDGER_DIR / "allocation_ledger.csv"
 GENED_RUBRICS = {"EDUC", "ENGL", "MATH", "COSC", "BCIS", "ARCE"}
 
 # Specific course exclusions — internships and practicums
-EXCLUDE_COURSES = {"WLDG 2489", "WLDG 2488", "CNBT 1266", "ELPT 2264"}
+EXCLUDE_COURSES = {
+    "WLDG 2489", "WLDG 2488", "CNBT 1266", "ELPT 2264",
+    # BCT explicit exclusions — trade-adjacent but out of NCCER scope
+    "OSHT 1405",   # OSHA Construction — covered by Core module 00108
+    "CNBT 1413",   # Concrete I — no NCCER credential match
+    "ELPT 1329",   # Residential Wiring — electrical track, not construction
+}
 
 # ── Trace × program scope definitions ────────────────────────────────────────
 #
 # Keys per program entry:
-#   semester_max          — upper semester boundary (99 = all semesters)
-#   rubric_include        — if set, only these rubrics are included
-#   wldg_trunk_only       — if True, include WLDG only where choose_one=False
-#                           (T-3 pipefitting: shared trunk only, not welding track)
+#   semester_max     — upper semester boundary (99 = all semesters)
+#   rubric_include   — if set, only these rubrics are included
+#   wldg_trunk_only  — if True, include WLDG only where choose_one=False
+#                      (T-3 pipefitting: shared trunk only, not welding track)
 
 TRACE_PROGRAMS = {
     "t0_core": {
@@ -75,6 +87,13 @@ TRACE_PROGRAMS = {
     },
     "t5_carpentry": {
         "bct_aas": {"semester_max": 99},
+        "bcm_aas": {"semester_max": 99, "inherit_from": "bct_aas"},
+    },
+    "t6_rigging": {
+        "bct_aas": {"semester_max": 99},
+    },
+    "t7_scaffold": {
+        "bct_aas": {"semester_max": 99},
     },
 }
 
@@ -95,9 +114,9 @@ def course_id_to_content_key(course_id: str) -> str:
 
 
 def get_candidate_pool(
-    program:     str,
-    trace_id:    str,
-    semester_max: int,
+    program:          str,
+    trace_id:         str,
+    semester_max:     int,
     rubric_include:   list | None = None,
     wldg_trunk_only:  bool = False,
 ) -> list[str]:
@@ -110,7 +129,7 @@ def get_candidate_pool(
       3. Gen-ed rubric exclusion
       4. Specific course exclusion (internships, practicums)
       5. rubric_include — if provided, keep only these rubrics
-      6. wldg_trunk_only — if True, drop WLDG courses where choose_one=True
+      6. wldg_trunk_only — drop WLDG courses where choose_one=True
       7. Trace rubric_scope from config (craft traces)
     """
     dp = pd.read_csv(PROCESSED_DIR / "degree_plans_processed.csv")
@@ -122,19 +141,16 @@ def get_candidate_pool(
         (~dp["course_id"].isin(EXCLUDE_COURSES))
     ].copy()
 
-    # rubric_include filter (track-specific)
     if rubric_include:
         pool = pool[pool["rubric"].isin(rubric_include)]
 
-    # wldg_trunk_only — T-3 pipefitting: keep WLDG only where choose_one=False
     if wldg_trunk_only:
-        wldg_mask   = pool["rubric"] == "WLDG"
-        trunk_mask  = pool["choose_one"] == False
-        non_wldg    = pool[~wldg_mask]
-        wldg_trunk  = pool[wldg_mask & trunk_mask]
-        pool        = pd.concat([non_wldg, wldg_trunk], ignore_index=True)
+        wldg_mask  = pool["rubric"] == "WLDG"
+        trunk_mask = pool["choose_one"] == False
+        non_wldg   = pool[~wldg_mask]
+        wldg_trunk = pool[wldg_mask & trunk_mask]
+        pool       = pd.concat([non_wldg, wldg_trunk], ignore_index=True)
 
-    # Trace rubric_scope from config (craft traces — T-1, T-4, T-5)
     rubric_scope = TRACES.get(trace_id, {}).get("rubric_scope")
     if rubric_scope and trace_id not in ("t2_welding", "t3_pipefitting"):
         pool = pool[pool["rubric"].isin(rubric_scope)]
@@ -157,7 +173,11 @@ def build_module_queue(
       3. Rank all N pairs by SBERT descending
       4. TF-IDF promotion (+1 if TF-IDF rank < current position)
       5. Jaccard promotion (+1 if Jaccard rank < current position, after TF-IDF)
-      6. Truncate to K = ceil(N/2)
+      6. Present full N — no K truncation per MN-001
+
+    Termination is handled by the review interface (accept exit / frustration
+    exit) not by queue depth. The queue is the complete candidate pool in
+    reordered presentation sequence.
     """
     content_keys = {course_id_to_content_key(c): c for c in candidate_course_ids}
     key_set      = set(content_keys.keys())
@@ -166,8 +186,8 @@ def build_module_queue(
     tfidf   = pd.read_csv(SCORES_DIR / f"{trace_id}_tfidf.csv")
     jaccard = pd.read_csv(SCORES_DIR / f"{trace_id}_jaccard.csv")
 
-    sbert   = sbert[sbert["module_id"]   == module_id].copy()
-    tfidf   = tfidf[tfidf["module_id"]   == module_id].copy()
+    sbert   = sbert[sbert["module_id"]    == module_id].copy()
+    tfidf   = tfidf[tfidf["module_id"]    == module_id].copy()
     jaccard = jaccard[jaccard["module_id"] == module_id].copy()
 
     sbert   = sbert[sbert["wecm_course_id"].isin(key_set)].copy()
@@ -178,7 +198,6 @@ def build_module_queue(
         return pd.DataFrame()
 
     N = len(sbert)
-    K = math.ceil(N / 2)
 
     # Re-rank within candidate pool
     sbert   = sbert.sort_values("sbert_score",    ascending=False).reset_index(drop=True)
@@ -232,17 +251,18 @@ def build_module_queue(
                 df.at[idx, "queue_pos"]         = current_pos - 1
                 df.at[idx, "promotion_delta"]  += 1
 
-    # ── Truncate to K ─────────────────────────────────────────────────────────
-    df = df[df["queue_pos"] <= K].sort_values("queue_pos").reset_index(drop=True)
+    # ── Full N queue — no truncation ──────────────────────────────────────────
+    df = df.sort_values("queue_pos").reset_index(drop=True)
 
     df.insert(0, "trace_id", trace_id)
     df.insert(1, "program",  program)
-    df["N"]             = N
-    df["K"]             = K
-    df["decision"]      = "PENDING"
-    df["analyst"]       = ""
-    df["decision_date"] = ""
-    df["rationale"]     = ""
+    df["N"]                      = N
+    df["consecutive_rejects"]    = 0   # runtime counter — reset on accept
+    df["decision"]               = "PENDING"
+    df["analyst"]                = ""
+    df["decision_date"]          = ""
+    df["rationale"]              = ""
+    df["exit_type"]              = ""  # ACCEPT_EXIT | FRUSTRATION_EXIT | EXHAUSTION
 
     return df
 
@@ -263,13 +283,13 @@ def build_trace_queue(trace_id: str) -> pd.DataFrame:
         print(f"  Program: {program}")
 
         candidate_ids = get_candidate_pool(
-            program          = program,
-            trace_id         = trace_id,
-            semester_max     = scope.get("semester_max", 99),
-            rubric_include   = scope.get("rubric_include"),
-            wldg_trunk_only  = scope.get("wldg_trunk_only", False),
+            program         = program,
+            trace_id        = trace_id,
+            semester_max    = scope.get("semester_max", 99),
+            rubric_include  = scope.get("rubric_include"),
+            wldg_trunk_only = scope.get("wldg_trunk_only", False),
         )
-        print(f"    Candidate pool: {len(candidate_ids)} courses")
+        print(f"    Candidate pool: {len(candidate_ids)} courses (full N — no truncation)")
         for c in candidate_ids:
             print(f"      {c}")
 
@@ -317,7 +337,13 @@ def record_decision(
 ):
     """
     Write a single decision to the queue state file.
-    Enforces max 3 accepts per module × program.
+
+    Enforces accept exit (3 accepts) and tracks consecutive_rejects
+    for frustration exit detection (4 consecutive NOT_ACCEPT).
+
+    Module resolution states per MN-001:
+      Placed: 1, 2, or 3 accepts recorded at exit
+      Orphan: 0 accepts recorded at exit
     """
     assert decision in ("ACCEPT", "NOT_ACCEPT"), \
         "Decision must be ACCEPT or NOT_ACCEPT"
@@ -334,22 +360,63 @@ def record_decision(
             f"Pair not found in queue: {program} / {module_id} / {wecm_course_id}"
         )
 
+    # Check accept exit — 3 accepts closes the module
     if decision == "ACCEPT":
-        existing = df[
+        existing_accepts = df[
             (df["program"]   == program) &
             (df["module_id"] == module_id) &
             (df["decision"]  == "ACCEPT")
         ]
-        if len(existing) >= 3:
+        if len(existing_accepts) >= 3:
             raise ValueError(
-                f"Module {module_id} in {program} already has 3 Accept decisions. "
-                f"Module review is closed."
+                f"Module {module_id} in {program} has reached 3 Accept decisions. "
+                f"Accept exit already fired — module is closed."
             )
 
+    # Write decision
     df.loc[mask, "decision"]      = decision
     df.loc[mask, "analyst"]       = analyst
     df.loc[mask, "decision_date"] = datetime.now().strftime("%Y-%m-%d")
     df.loc[mask, "rationale"]     = rationale
+
+    # Update consecutive_rejects counter
+    # Get all decisions for this module in queue_pos order
+    mod_df = df[
+        (df["program"]   == program) &
+        (df["module_id"] == module_id)
+    ].sort_values("queue_pos")
+
+    # Recompute consecutive rejects from the end of decided pairs
+    decided = mod_df[mod_df["decision"] != "PENDING"]
+    consecutive = 0
+    for _, row in decided.sort_values("queue_pos", ascending=False).iterrows():
+        if row["decision"] == "NOT_ACCEPT":
+            consecutive += 1
+        else:
+            break  # Any ACCEPT resets the streak
+
+    # Write consecutive_rejects to all rows for this module
+    mod_mask = (df["program"] == program) & (df["module_id"] == module_id)
+    df.loc[mod_mask, "consecutive_rejects"] = consecutive
+
+    # Check exit conditions and stamp exit_type on all module rows
+    n_accepts    = (decided["decision"] == "ACCEPT").sum()
+    n_decided    = len(decided)
+    n_total      = len(mod_df)
+    exit_type    = ""
+
+    if n_accepts >= 3:
+        exit_type = "ACCEPT_EXIT"
+    elif consecutive >= 4:
+        exit_type = "FRUSTRATION_EXIT"
+    elif n_decided == n_total:
+        exit_type = "EXHAUSTION"
+
+    if exit_type:
+        df.loc[mod_mask, "exit_type"] = exit_type
+        status = "PLACED" if n_accepts >= 1 else "ORPHAN"
+        print(f"  Module {module_id} / {program}: {exit_type} — {status} "
+              f"({n_accepts} accept(s) recorded)")
 
     df.to_csv(QUEUE_DIR / f"{trace_id}_queue.csv", index=False)
     print(f"  Recorded: {decision} — {program} / module {module_id} / {wecm_course_id}")
@@ -360,8 +427,12 @@ def record_decision(
 def build_ledger():
     """
     Compile all ACCEPT decisions across all trace queues into the
-    master allocation ledger. Flag orphans where K queue exhausted
-    before 3 accepts.
+    master allocation ledger.
+
+    Orphan detection per MN-001:
+      Orphan = 0 accepts recorded at exit (frustration, exhaustion, or
+      full N presented with no accept exit fired).
+      Placed = 1, 2, or 3 accepts — regardless of exit type.
     """
     LEDGER_DIR.mkdir(parents=True, exist_ok=True)
     all_accepts = []
@@ -377,29 +448,32 @@ def build_ledger():
         if not accepts.empty:
             all_accepts.append(accepts)
 
+        # Orphan detection: modules where no PENDING remains and accepts == 0
         for (program, module_id), grp in df.groupby(["program", "module_id"]):
             n_accepts = (grp["decision"] == "ACCEPT").sum()
             n_pending = (grp["decision"] == "PENDING").sum()
-            if n_accepts < 3 and n_pending == 0:
+            if n_accepts == 0 and n_pending == 0:
                 orphans.append({
                     "trace_id":         trace_id,
                     "program":          program,
                     "module_id":        module_id,
                     "module_title":     grp["module_title"].iloc[0],
-                    "accepts_recorded": n_accepts,
-                    "status":           "ORPHAN — analyst override required",
+                    "accepts_recorded": 0,
+                    "exit_type":        grp["exit_type"].iloc[0]
+                                        if "exit_type" in grp.columns else "",
+                    "status":           "ORPHAN — recycle protocol applies",
                 })
 
     if all_accepts:
-        ledger_df  = pd.concat(all_accepts, ignore_index=True)
+        ledger_df   = pd.concat(all_accepts, ignore_index=True)
         ledger_cols = [
             "trace_id", "program", "module_id", "module_title",
             "wecm_course_id", "wecm_title",
             "sbert_score", "pool_sbert_rank",
             "tfidf_score", "pool_tfidf_rank",
             "jaccard_score", "pool_jaccard_rank",
-            "promotion_delta", "queue_pos", "N", "K",
-            "analyst", "decision_date", "rationale",
+            "promotion_delta", "queue_pos", "N",
+            "exit_type", "analyst", "decision_date", "rationale",
         ]
         ledger_df = ledger_df[[c for c in ledger_cols if c in ledger_df.columns]]
         ledger_df.to_csv(LEDGER_FILE, index=False)
@@ -411,7 +485,7 @@ def build_ledger():
         orphan_df   = pd.DataFrame(orphans)
         orphan_path = LEDGER_DIR / "orphans.csv"
         orphan_df.to_csv(orphan_path, index=False)
-        print(f"Orphans: {orphan_path.name} — {len(orphans)} modules require override")
+        print(f"Orphans: {orphan_path.name} — {len(orphans)} modules require recycle")
     else:
         print("No orphans detected.")
 

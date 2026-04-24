@@ -138,23 +138,23 @@ TRACES = {
     "t5_carpentry": {
         "name": "NCCER Carpentry (General, Form, Advanced)",
         "cip_scope": ["46.0400"],
-        "target_programs": ["bct_aas"],
+        "target_programs": ["bct_aas", "bcm_aas"],
         "rubric_scope": ["CNBT", "WDWK"],
-        "notes": "Full scope for BCT. Limited match expected — elective or CE overlay likely.",
+        "notes": "Full scope for BCT. BCM inherits from BCT ledger at coverage map stage — no independent SME queue.",
     },
     "t6_rigging": {
         "name": "NCCER Rigging (Basic, Intermediate, Advanced)",
         "cip_scope": ["46"],
-        "target_programs": [],
-        "rubric_scope": ["CNSE"],
-        "notes": "No degree home. CE overlay documentation only. XLSX source files — direct read.",
+        "target_programs": ["bct_aas"],
+        "rubric_scope": ["CNBT", "WDWK"],
+        "notes": "BCT candidate pool only. BCM inherits from BCT ledger. No CNSE in BCT degree plan.",
     },
     "t7_scaffold": {
         "name": "NCCER Scaffold Builder L1",
         "cip_scope": ["46"],
-        "target_programs": [],
-        "rubric_scope": ["CNSE"],
-        "notes": "No degree home. CE overlay documentation only.",
+        "target_programs": ["bct_aas"],
+        "rubric_scope": ["CNBT", "WDWK"],
+        "notes": "BCT candidate pool only. BCM inherits from BCT ledger. No CNSE in BCT degree plan.",
     },
 }
 
